@@ -17,7 +17,7 @@ jobs:
     name: Plugin (format, lint, types, tests)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run format:check
@@ -34,7 +34,7 @@ jobs:
         # Each OS compiles different platform code (ducking, audio backends).
         os: [macos-15, ubuntu-22.04, windows-2022]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
