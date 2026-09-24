@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/malhashemi/opencode-gpt-live/compare/v0.1.0...v0.1.1) (2026-09-24)
+
+
+### Bug fixes
+
+* **tui:** draw the kitty aura over the panel without flashing a see-through square ([#14](https://github.com/malhashemi/opencode-gpt-live/issues/14)) ([bf83a5a](https://github.com/malhashemi/opencode-gpt-live/commit/bf83a5a4f64fc6d5fac703110ef4afa1e3b4ca1d))
+
 ## 0.1.0 (2026-09-23)
 
 The first release: real-time voice calls with OpenCode through GPT-Live, on your ChatGPT subscription.
