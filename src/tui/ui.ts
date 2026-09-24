@@ -57,18 +57,35 @@ export function mix(a: RGBA, b: RGBA, t: number) {
   )
 }
 
+type HueName = keyof Theme["hue"]
+type HueStep = keyof Theme["hue"][HueName]
+
 function palette(theme: Theme) {
   const bg = theme.background.base
+  // Some themes define only part of the hue set (OpenCode 2.0.16's "system" theme has no
+  // cyan, blue, purple, green or yellow), so each color falls back to the nearest one present.
+  const hues = theme.hue as Partial<Theme["hue"]>
+  const pick = (step: HueStep, ...names: HueName[]) => {
+    for (const name of names) {
+      const color = hues[name]?.[step]
+      if (color) return color
+    }
+    return theme.text.base
+  }
   return {
     bg,
     text: theme.text.base,
     muted: theme.text.muted,
-    mic: [theme.hue.cyan[300], theme.hue.cyan[500], theme.hue.blue[400]] as const,
-    speaker: [theme.hue.purple[300], theme.hue.purple[500], theme.hue.accent[500]] as const,
-    live: theme.hue.green[500],
-    warn: theme.hue.yellow[500],
-    error: theme.hue.red[500],
-    accent: theme.hue.accent[500],
+    mic: [
+      pick(300, "cyan", "interactive", "accent"),
+      pick(500, "cyan", "interactive", "accent"),
+      pick(400, "blue", "interactive", "accent"),
+    ] as const,
+    speaker: [pick(300, "purple", "accent"), pick(500, "purple", "accent"), pick(500, "accent")] as const,
+    live: pick(500, "green", "interactive", "accent"),
+    warn: pick(500, "yellow", "orange", "accent"),
+    error: pick(500, "red", "orange", "accent"),
+    accent: pick(500, "accent"),
     dim: mix(theme.text.muted, bg, 0.45),
   }
 }
@@ -516,6 +533,8 @@ export function footerBadge(context: Context, voice: VoiceController): View {
  */
 export class Frames {
   private readonly views = new Set<View>()
+  /** The last error each view threw, so a view that fails every frame is logged once. */
+  private readonly failures = new WeakMap<View, string>()
   private timer: ReturnType<typeof setInterval> | undefined
   private period = 0
   private readonly stopListening: () => void
@@ -542,12 +561,19 @@ export class Frames {
       }
       try {
         view.update(now)
+        this.failures.delete(view)
         if (view.animating(now)) {
           animating = true
           period = Math.min(period, view.interval?.() ?? 33)
         }
-      } catch {
-        // Keep other views and the call alive if one view fails to draw.
+      } catch (error) {
+        // Keep other views and the call alive if one view fails to draw; the view stays
+        // mounted so it recovers on its own once the cause goes away.
+        const message = String(error)
+        if (this.failures.get(view) !== message) {
+          this.failures.set(view, message)
+          debug({ event: "view-error", error: message })
+        }
       }
     }
     if (this.timer && (!animating || period !== this.period)) {
