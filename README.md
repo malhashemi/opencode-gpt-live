@@ -108,11 +108,11 @@ Every command is also in the <kbd>ctrl</kbd>+<kbd>p</kbd> palette. Keys can be c
 
 The aura picks the best way your terminal can draw it:
 
-| Terminal                                                     | Aura                                       |
-| ------------------------------------------------------------ | ------------------------------------------ |
-| Kitty graphics protocol (Ghostty, kitty)                     | Anti-aliased image, up to 60 frames/second |
-| [herdr](https://github.com/herdrdev/herdr)                   | Image through herdr's pane graphics API    |
-| Anything else (tmux, iTerm2, Terminal.app, Windows Terminal) | Half-block characters in true color        |
+| Terminal                                                     | Aura                                    |
+| ------------------------------------------------------------ | --------------------------------------- |
+| Kitty graphics protocol (Ghostty, kitty)                     | Anti-aliased image, 30 frames/second    |
+| [herdr](https://github.com/herdrdev/herdr)                   | Image through herdr's pane graphics API |
+| Anything else (tmux, iTerm2, Terminal.app, Windows Terminal) | Half-block characters in true color     |
 
 Voice, commands and the transcript work the same everywhere.
 

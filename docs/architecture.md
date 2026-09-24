@@ -140,8 +140,8 @@ constraints drive this:
 - **No JSX.** For the same reason the UI does not use Solid; views are plain objects with `update(now)`,
   `animating(now)` and optional `interval()`, `suspend()` and `dispose()`.
 
-The frame clock runs only while something animates, at the fastest interval any animating view asks for: 16 ms for the
-kitty image aura, 33 ms otherwise.
+The frame clock runs only while something animates, at the fastest interval any animating view asks for (33 ms for
+the aura).
 
 ### The aura
 
@@ -155,5 +155,14 @@ spinning the other way in violet. The level driving it is smoothed with a 40 ms 
 | Surface  | When                                             | How                                                            |
 | -------- | ------------------------------------------------ | -------------------------------------------------------------- |
 | `herdr`  | `HERDR_ENV=1`, not inside tmux, screen or Zellij | RGBA frames over herdr's `pane.graphics.stream` socket, 30 fps |
-| `kitty`  | The renderer reports kitty graphics              | An `ImageRenderable` fed by a `NativeImagePool`, 60 fps        |
+| `kitty`  | The renderer reports kitty graphics              | Kitty graphics commands over an empty slot, 30 fps (see below) |
 | `blocks` | Everywhere else                                  | Half-block characters, rendered at 3× and averaged down        |
+
+The kitty surface (`src/tui/kitty.ts`) does not use OpenTUI's `ImageRenderable`, which clears the cells under an image
+to the terminal's default background: with a translucent terminal, every late frame flashed a see-through square. It
+reserves the cells with an empty box instead, so they keep the panel's background, and writes the kitty commands
+through the renderer's output queue (`writeOut`, which OpenTUI uses for its own control sequences but does not type as
+public). Every frame retransmits the same image and placement ID at the slot's cell (zlib-compressed RGBA, chunked,
+cursor saved and restored, all in one synchronized update so the cursor never visibly moves), so the terminal swaps pixels in place and never shows an empty box. Frames use the
+terminal's real cell size, capped at 65,000 pixels; the image is placed only once the slot's position has held for a
+frame, and deleted when the aura hides. Without `writeOut`, the aura falls back to half-blocks.

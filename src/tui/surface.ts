@@ -1,7 +1,8 @@
 import type { Plugin } from "@opencode/plugin/tui"
 /**
  * Pixel surfaces: somewhere to show an RGBA animation inside the terminal UI.
- * - kitty: an image renderable (Ghostty, kitty, WezTerm and other kitty-graphics terminals)
+ * - kitty: kitty graphics commands over an empty slot (Ghostty, kitty, WezTerm and other
+ *   kitty-graphics terminals)
  * - herdr: frames streamed through herdr's pane graphics API (herdr does not display kitty
  *   images printed by programs)
  * - blocks: half-block characters with true color, for every other terminal
@@ -11,6 +12,7 @@ import type { RGBA, Renderable, TextRenderable } from "@opentui/core"
 
 import { core } from "./core"
 import { HerdrStream, detectHerdr, type HerdrPane } from "./herdr"
+import { framePixels, imageID, kittyDelete, kittyFrame } from "./kitty"
 
 type Context = Plugin.Context
 type Renderer = Context["renderer"]
@@ -48,6 +50,7 @@ export function pickSurface(context: Context, layer: string, rows: number): Surf
   // coordinates no longer match what is on screen.
   const nested = !!(process.env.TMUX || process.env.STY || process.env.ZELLIJ)
   const herdr = nested ? undefined : detectHerdr()
+  const write = rawWriter(renderer)
   const kind =
     forced === "blocks" || forced === "kitty" || forced === "herdr"
       ? forced
@@ -56,9 +59,9 @@ export function pickSurface(context: Context, layer: string, rows: number): Surf
         : renderer.capabilities?.kitty_graphics
           ? "kitty"
           : "blocks"
-  debug({ event: "surface", layer, kind, forced, herdr: !!herdr, capabilities: renderer.capabilities })
+  debug({ event: "surface", layer, kind, forced, herdr: !!herdr, writer: !!write, capabilities: renderer.capabilities })
   if (kind === "herdr" && herdr) return herdrSurface(renderer, rows, herdr, layer)
-  if (kind === "kitty") return kittySurface(renderer, rows)
+  if (kind === "kitty" && write) return kittySurface(renderer, rows, layer, write)
   return blockSurface(renderer, rows)
 }
 
@@ -77,66 +80,78 @@ function shown(node: Renderable, renderer: Renderer) {
   return false
 }
 
-function kittySurface(renderer: Renderer, rows: number): Surface {
+type Write = (data: string) => void
+
+/**
+ * The renderer's output queue. It is not in OpenTUI's public types, but it is how OpenTUI itself
+ * writes control sequences, and going through it keeps them from interleaving with a frame.
+ */
+function rawWriter(renderer: Renderer): Write | undefined {
+  const writeOut = (renderer as unknown as { writeOut?: (chunk: string) => unknown }).writeOut
+  return typeof writeOut === "function" ? (data) => void writeOut.call(renderer, data) : undefined
+}
+
+/**
+ * Kitty graphics drawn over an empty slot, like the herdr surface: the slot's cells keep the
+ * panel's background, and each frame replaces the same image in place, so a late frame never
+ * shows an empty (terminal-background) box.
+ */
+function kittySurface(renderer: Renderer, rows: number, layer: string, write: Write): Surface {
   const c = core()
+  const slot = new c.BoxRenderable(renderer, { height: rows, flexShrink: 0 })
+  const id = imageID(layer)
   let failed = false
-  const image = new c.ImageRenderable(renderer, {
-    height: rows,
-    fit: "fill",
-    protocol: "kitty",
-    flexShrink: 0,
-    onError: (error) => {
-      failed = true
-      debug({ event: "kitty-error", error: String(error) })
-    },
-  })
-  image.visible = false
-  let pool: InstanceType<typeof c.NativeImagePool> | undefined
-  let size = ""
-  // publishRgba returns a retained frame and the renderable retains its own; ours must be
-  // released when the next frame replaces it, or the pool's slots stay busy and it freezes.
-  let last: ReturnType<InstanceType<typeof c.NativeImagePool>["publishRgba"]> = null
-  const release = () => {
-    last?.dispose()
-    last = null
-    pool?.dispose()
-    pool = undefined
-    size = ""
+  let placed = false
+  let settled = false
+  let seen = ""
+  const remove = () => {
+    if (placed) write(kittyDelete(id))
+    placed = false
+    settled = false
+    seen = ""
   }
   return {
     kind: "kitty",
-    interval: 16,
-    node: image,
-    healthy: () => !failed && !image.isDestroyed,
+    interval: 33,
+    node: slot,
+    healthy: () => !failed && !slot.isDestroyed,
     draw(paint, cols, surfaceRows) {
+      if (slot.width !== cols) slot.width = cols
+      if (slot.height !== surfaceRows) slot.height = surfaceRows
+      if (!shown(slot, renderer) || slot.width <= 0 || slot.height <= 0) return remove()
+      // Place the image only once the slot's position has held for a frame, so it doesn't
+      // appear at a stale spot while the layout settles. After that it follows the slot.
+      const at = `${slot.x},${slot.y},${cols},${surfaceRows}`
+      if (!settled) {
+        settled = at === seen
+        seen = at
+        if (!settled) return
+      }
       try {
-        const width = cols * 8
-        const height = surfaceRows * 16
-        if (size !== `${width}x${height}`) {
-          release()
-          size = `${width}x${height}`
-          pool = new c.NativeImagePool({ width, height, capacity: 3 })
-        }
-        if (image.width !== cols) image.width = cols
-        if (image.height !== surfaceRows) image.height = surfaceRows
-        const frame = pool!.publishRgba(paint(width, height))
-        if (frame) {
-          image.source = frame
-          last?.dispose()
-          last = frame
-        }
-        if (!image.visible) image.visible = true
+        const size = framePixels(cols, surfaceRows, renderer.resolution, {
+          width: renderer.terminalWidth,
+          height: renderer.terminalHeight,
+        })
+        write(
+          kittyFrame({
+            id,
+            col: slot.x,
+            row: slot.y,
+            cols,
+            rows: surfaceRows,
+            ...size,
+            rgba: paint(size.width, size.height),
+          }),
+        )
+        placed = true
       } catch (error) {
         failed = true
-        image.visible = false
-        release()
+        remove()
         debug({ event: "kitty-draw-error", error: String(error) })
       }
     },
-    hide() {
-      if (image.visible) image.visible = false
-    },
-    dispose: release,
+    hide: remove,
+    dispose: remove,
   }
 }
 
