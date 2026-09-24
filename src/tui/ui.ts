@@ -148,6 +148,7 @@ export function voiceStrip(context: Context, voice: VoiceController, sessionID: 
         chunk(status.label, status.fg, { bold: true }),
         chunk(" · GPT-Live", p.muted),
       ]
+      if (state.targetTitle) left.push(chunk(` · ${state.targetTitle}`, p.text))
       if (state.voice) left.push(chunk(` · ${state.voice}`, p.muted))
       if (state.call) left.push(chunk(` · call ${state.call}`, p.dim))
       if (state.phase === "live" && state.liveAt) left.push(chunk(`  ${duration(now - state.liveAt)}`, p.text))
@@ -504,6 +505,7 @@ export function footerBadge(context: Context, voice: VoiceController): View {
       text.content = styled([
         dot,
         chunk(" voice", p.muted),
+        ...(state.targetTitle ? [chunk(` · ${state.targetTitle}`, p.text)] : []),
         ...(state.phase === "live" && state.liveAt ? [chunk(` ${duration(now - state.liveAt)}`, p.dim)] : []),
       ])
     },

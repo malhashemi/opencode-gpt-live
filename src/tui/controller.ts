@@ -26,6 +26,8 @@ export interface VoiceState {
   callID?: string
   sessionID?: string
   voiceSessionID?: string
+  targetSessionID?: string
+  targetTitle?: string
   location?: Location
   voice?: string
   model?: string
@@ -131,6 +133,11 @@ export class VoiceController {
         const label = event.data.busy ? (event.data.label ?? "working") : undefined
         this.set(event.data.scope === "voice" ? { voiceActivity: label } : { mainActivity: label })
       }),
+      rpc.events.on("target", (event) => {
+        if (!mine(event)) return
+        this.set({ targetSessionID: event.data.sessionID, targetTitle: event.data.title })
+        this.notice(`Coding target: ${event.data.title}`, "info")
+      }),
     )
   }
 
@@ -140,7 +147,13 @@ export class VoiceController {
 
   /** Whether this session is part of the current call (the main or the voice session). */
   owns(sessionID: string | undefined) {
-    return !!sessionID && this.active && (sessionID === this.state.sessionID || sessionID === this.state.voiceSessionID)
+    return (
+      !!sessionID &&
+      this.active &&
+      (sessionID === this.state.sessionID ||
+        sessionID === this.state.voiceSessionID ||
+        sessionID === this.state.targetSessionID)
+    )
   }
 
   private markLive() {
@@ -157,9 +170,12 @@ export class VoiceController {
     this.starting = true
     const session = this.context.data.session.get(sessionID) as { location?: Location } | undefined
     const location = session?.location ?? this.context.location ?? this.context.data.location.default()
+    const current = this.context.data.session.get(sessionID) as { title?: string; location?: Location } | undefined
     Object.assign(this.state, initial(), {
       phase: "connecting" as Phase,
       sessionID,
+      targetSessionID: sessionID,
+      targetTitle: current?.title || "this session",
       location,
       startedAt: Date.now(),
       revision: this.state.revision,
@@ -210,6 +226,7 @@ export class VoiceController {
       })
       for (const notice of call.notices ?? []) this.notice(notice, "info")
       this.heartbeat(call.callID)
+      void this.publishCatalog()
       await helper.answer(call.sdp)
       if (this.state.phase === "connecting") this.markLive()
     } catch (error) {
@@ -247,7 +264,35 @@ export class VoiceController {
   /** Tells the server this window still owns the call, so abandoned calls get cleaned up. */
   private heartbeat(callID: string) {
     clearInterval(this.pulse)
-    this.pulse = setInterval(() => void this.checkAlive(callID), 5_000)
+    this.pulse = setInterval(() => {
+      void this.checkAlive(callID)
+      void this.publishCatalog()
+    }, 5_000)
+  }
+
+  /** Publish same-project sessions without changing the selected target. Focusing a pane does not call this as a switch. */
+  private async publishCatalog() {
+    const callID = this.state.callID
+    if (!callID || !this.active) return
+    const listed = (this.context.data.session.list() ?? []) as Array<{
+      id?: string
+      title?: string
+      location?: Location
+    }>
+    const targets = listed.flatMap((session) =>
+      session.id
+        ? [
+            {
+              sessionID: session.id,
+              title: session.title || "session",
+              directory: session.location?.directory ?? this.state.location?.directory ?? "",
+            },
+          ]
+        : [],
+    )
+    await this.rpc()
+      .catalog({ callID, targets }, { location: this.state.location })
+      .catch(() => undefined)
   }
 
   private async checkAlive(callID: string) {
