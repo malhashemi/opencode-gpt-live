@@ -118,17 +118,29 @@ describe("kitty frame", () => {
 })
 
 describe("kitty image IDs", () => {
-  test("are a stable pair per layer, distinct, non-zero and within 24 bits", () => {
+  test("are a stable pair per layer within a process, distinct between layers", () => {
     const [a, b] = imageIDs("gptlive-aura-panel")
     expect(imageIDs("gptlive-aura-panel")).toEqual([a, b])
     expect(a).not.toBe(b)
-    for (const id of [a, b]) {
-      expect(id).toBeGreaterThan(0)
-      expect(id).toBeLessThan(2 ** 24)
-    }
     const other = imageIDs("gptlive-aura-sidebar")
     expect(other).not.toContain(a)
     expect(other).not.toContain(b)
+  })
+
+  test("sit above 24 bits and within the protocol's 32-bit range for any session", () => {
+    for (const session of [0, 1, 0x7fffffff, 0xffffffff, 123456789]) {
+      for (const layer of ["gptlive-aura-panel", "gptlive-aura-sidebar", ""]) {
+        for (const id of imageIDs(layer, session)) {
+          expect(Number.isInteger(id)).toBe(true)
+          expect(id).toBeGreaterThanOrEqual(2 ** 24)
+          expect(id).toBeLessThan(2 ** 32)
+        }
+      }
+    }
+  })
+
+  test("differ between sessions, so they aren't predictable", () => {
+    expect(imageIDs("gptlive-aura-panel", 1)).not.toEqual(imageIDs("gptlive-aura-panel", 2))
   })
 })
 

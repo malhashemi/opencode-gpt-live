@@ -31,11 +31,21 @@ export interface KittyFrame {
   replaces?: number
 }
 
-/** Two stable image IDs per layer, alternated frame to frame; auras in one terminal never share one. */
-export function imageIDs(layer: string): readonly [number, number] {
+/** Random per process, so the IDs aren't predictable to other programs sharing the terminal. */
+const SESSION = crypto.getRandomValues(new Uint32Array(1))[0]
+/** IDs sit above 2^24: away from sequential allocators and 24-bit (Unicode placeholder) IDs. */
+const ID_BASE = 2 ** 24
+const ID_PAIRS = (2 ** 32 - 2 - ID_BASE) / 2
+
+/**
+ * Two image IDs per layer, alternated frame to frame. Stable for a layer within a process and
+ * distinct between layers. Terminal-assigned numbers (`I=`) would need the terminal's replies,
+ * which arrive on input the renderer owns.
+ */
+export function imageIDs(layer: string, session = SESSION): readonly [number, number] {
   let hash = 2166136261
   for (let i = 0; i < layer.length; i++) hash = Math.imul(hash ^ layer.charCodeAt(i), 16777619)
-  const first = ((hash >>> 0) % 0x7ffffe) * 2 + 2
+  const first = ID_BASE + (((hash ^ session) >>> 0) % ID_PAIRS) * 2
   return [first, first + 1]
 }
 
