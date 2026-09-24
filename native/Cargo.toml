@@ -19,7 +19,7 @@ cpal = "=0.18.2"
 futures = "0.3"
 hound = "3.5"
 opus = "=0.4.0"
-rand = "0.9"
+rand = "0.10"
 ringbuf = "0.4"
 rtc = "=0.20.3"
 rubato = { version = "=5.0.0", default-features = false }
