@@ -533,6 +533,8 @@ export function footerBadge(context: Context, voice: VoiceController): View {
  */
 export class Frames {
   private readonly views = new Set<View>()
+  /** The last error each view threw, so a view that fails every frame is logged once. */
+  private readonly failures = new WeakMap<View, string>()
   private timer: ReturnType<typeof setInterval> | undefined
   private period = 0
   private readonly stopListening: () => void
@@ -559,13 +561,19 @@ export class Frames {
       }
       try {
         view.update(now)
+        this.failures.delete(view)
         if (view.animating(now)) {
           animating = true
           period = Math.min(period, view.interval?.() ?? 33)
         }
       } catch (error) {
-        // Keep other views and the call alive if one view fails to draw.
-        debug({ event: "view-error", error: String(error) })
+        // Keep other views and the call alive if one view fails to draw; the view stays
+        // mounted so it recovers on its own once the cause goes away.
+        const message = String(error)
+        if (this.failures.get(view) !== message) {
+          this.failures.set(view, message)
+          debug({ event: "view-error", error: message })
+        }
       }
     }
     if (this.timer && (!animating || period !== this.period)) {
