@@ -162,7 +162,11 @@ The kitty surface (`src/tui/kitty.ts`) does not use OpenTUI's `ImageRenderable`,
 to the terminal's default background: with a translucent terminal, every late frame flashed a see-through square. It
 reserves the cells with an empty box instead, so they keep the panel's background, and writes the kitty commands
 through the renderer's output queue (`writeOut`, which OpenTUI uses for its own control sequences but does not type as
-public). Every frame uploads and places the image at the slot's cell under the other of two alternating image IDs, then deletes the previous image (retransmitting an ID would delete its placements first) (zlib-compressed RGBA, chunked,
-cursor saved and restored, all in one synchronized update so the cursor never visibly moves), so the terminal swaps pixels in place and never shows an empty box. Frames use the
-terminal's real cell size, capped at 65,000 pixels; the image is placed only once the slot's position has held for a
-frame, and deleted when the aura hides. Without `writeOut`, the aura falls back to half-blocks.
+public).
+
+Each frame is zlib-compressed RGBA, sent in chunks and placed at the slot's cell under the other of two alternating
+image IDs; the previous image is deleted only after the new one is placed. (Retransmitting an ID would delete its
+placements first, leaving the aura blank during a slow upload.) The cursor is saved and restored around each frame, all
+inside one synchronized update, so it never visibly moves. Frames use the terminal's real cell size, capped at 65,000
+pixels. The image is placed only once the slot's position has held for a frame, and deleted when the aura hides.
+Without `writeOut`, the aura falls back to half-blocks.
