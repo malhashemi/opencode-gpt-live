@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { inflateSync } from "node:zlib"
 
-import { framePixels, imageID, kittyDelete, kittyFrame } from "../src/tui/kitty"
+import { framePixels, imageIDs, kittyDelete, kittyFrame } from "../src/tui/kitty"
 
 const ESC = "\x1b"
 
@@ -80,15 +80,55 @@ describe("kitty frame", () => {
   test("delete removes the image and its data", () => {
     expect(kittyDelete(42)).toBe(`${ESC}_Ga=d,d=I,i=42,q=2${ESC}\\`)
   })
+
+  test("deletes the replaced image only after placing the new one", () => {
+    const out = kittyFrame({
+      id: 43,
+      replaces: 42,
+      col: 0,
+      row: 0,
+      cols: 24,
+      rows: 12,
+      width: 64,
+      height: 4,
+      rgba: new Uint8Array(64 * 4 * 4),
+    })
+    const place = out.indexOf("a=T")
+    const remove = out.indexOf(kittyDelete(42))
+    expect(place).toBeGreaterThan(-1)
+    expect(remove).toBeGreaterThan(place)
+    expect(out.endsWith(`${kittyDelete(42)}${ESC}8${ESC}[?2026l`)).toBe(true)
+  })
+
+  test("never deletes the image it is placing", () => {
+    expect(frame(new Uint8Array(64 * 4 * 4))).not.toContain("a=d")
+    const same = kittyFrame({
+      id: 42,
+      replaces: 42,
+      col: 0,
+      row: 0,
+      cols: 1,
+      rows: 1,
+      width: 1,
+      height: 1,
+      rgba: new Uint8Array(4),
+    })
+    expect(same).not.toContain("a=d")
+  })
 })
 
 describe("kitty image IDs", () => {
-  test("are stable, non-zero and differ per layer", () => {
-    const panel = imageID("gptlive-aura-panel")
-    expect(panel).toBe(imageID("gptlive-aura-panel"))
-    expect(panel).toBeGreaterThan(0)
-    expect(panel).toBeLessThan(2 ** 24)
-    expect(imageID("gptlive-aura-sidebar")).not.toBe(panel)
+  test("are a stable pair per layer, distinct, non-zero and within 24 bits", () => {
+    const [a, b] = imageIDs("gptlive-aura-panel")
+    expect(imageIDs("gptlive-aura-panel")).toEqual([a, b])
+    expect(a).not.toBe(b)
+    for (const id of [a, b]) {
+      expect(id).toBeGreaterThan(0)
+      expect(id).toBeLessThan(2 ** 24)
+    }
+    const other = imageIDs("gptlive-aura-sidebar")
+    expect(other).not.toContain(a)
+    expect(other).not.toContain(b)
   })
 })
 

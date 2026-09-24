@@ -1,9 +1,10 @@
 /**
  * Kitty graphics commands for the aura, written through the renderer's own output queue.
  *
- * Each surface keeps one image ID and one placement ID. Every frame retransmits the image under
- * that ID at the slot's cell position, so the terminal swaps the pixels in place: there is no
- * moment without an image, and the cells underneath keep the panel's background.
+ * Retransmitting an image ID deletes that image and its placements first (protocol rule), so each
+ * surface alternates between two IDs: a frame uploads and places the new image under the other ID,
+ * then deletes the previous one. There is no moment without an image, and the cells underneath
+ * keep the panel's background.
  */
 import { deflateSync } from "node:zlib"
 
@@ -26,13 +27,16 @@ export interface KittyFrame {
   width: number
   height: number
   rgba: Uint8Array
+  /** The previous frame's image, deleted once this one is placed. */
+  replaces?: number
 }
 
-/** A stable image ID per layer, so two auras in one terminal never share an image. */
-export function imageID(layer: string) {
+/** Two stable image IDs per layer, alternated frame to frame; auras in one terminal never share one. */
+export function imageIDs(layer: string): readonly [number, number] {
   let hash = 2166136261
   for (let i = 0; i < layer.length; i++) hash = Math.imul(hash ^ layer.charCodeAt(i), 16777619)
-  return ((hash >>> 0) % 0xfffffe) + 1
+  const first = ((hash >>> 0) % 0x7ffffe) * 2 + 2
+  return [first, first + 1]
 }
 
 /**
@@ -55,9 +59,10 @@ export function framePixels(
 }
 
 /**
- * Transmits and places one frame at its cell position: zlib-compressed RGBA, chunked, with the
- * cursor saved and restored around it so the renderer's own cursor is untouched. The whole frame
- * is one synchronized update (mode 2026), so the terminal never paints the cursor mid-move.
+ * Transmits and places one frame at its cell position (zlib-compressed RGBA, chunked), then deletes
+ * the image it replaces. The cursor is saved and restored around it so the renderer's own cursor is
+ * untouched, and the whole frame is one synchronized update (mode 2026), so the terminal never
+ * paints the cursor mid-move.
  */
 export function kittyFrame(frame: KittyFrame) {
   const payload = Buffer.from(deflateSync(frame.rgba)).toString("base64")
@@ -81,6 +86,7 @@ export function kittyFrame(frame: KittyFrame) {
     const control = offset === 0 ? `${keys},m=${more}` : `m=${more},q=2`
     out += `${ESC}_G${control};${payload.slice(offset, offset + CHUNK)}${ESC}\\`
   }
+  if (frame.replaces !== undefined && frame.replaces !== frame.id) out += kittyDelete(frame.replaces)
   return `${out}${ESC}8${ESC}[?2026l`
 }
 

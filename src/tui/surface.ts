@@ -12,7 +12,7 @@ import type { RGBA, Renderable, TextRenderable } from "@opentui/core"
 
 import { core } from "./core"
 import { HerdrStream, detectHerdr, type HerdrPane } from "./herdr"
-import { framePixels, imageID, kittyDelete, kittyFrame } from "./kitty"
+import { framePixels, imageIDs, kittyDelete, kittyFrame } from "./kitty"
 
 type Context = Plugin.Context
 type Renderer = Context["renderer"]
@@ -93,20 +93,21 @@ function rawWriter(renderer: Renderer): Write | undefined {
 
 /**
  * Kitty graphics drawn over an empty slot, like the herdr surface: the slot's cells keep the
- * panel's background, and each frame replaces the same image in place, so a late frame never
- * shows an empty (terminal-background) box.
+ * panel's background, and each frame is placed before the previous one is deleted (two
+ * alternating image IDs), so a late frame never shows an empty (terminal-background) box.
  */
 function kittySurface(renderer: Renderer, rows: number, layer: string, write: Write): Surface {
   const c = core()
   const slot = new c.BoxRenderable(renderer, { height: rows, flexShrink: 0 })
-  const id = imageID(layer)
+  const ids = imageIDs(layer)
   let failed = false
-  let placed = false
+  /** The image currently on screen, if any. */
+  let showing: number | undefined
   let settled = false
   let seen = ""
   const remove = () => {
-    if (placed) write(kittyDelete(id))
-    placed = false
+    if (showing !== undefined) write(kittyDelete(showing))
+    showing = undefined
     settled = false
     seen = ""
   }
@@ -132,6 +133,7 @@ function kittySurface(renderer: Renderer, rows: number, layer: string, write: Wr
           width: renderer.terminalWidth,
           height: renderer.terminalHeight,
         })
+        const id = showing === ids[0] ? ids[1] : ids[0]
         write(
           kittyFrame({
             id,
@@ -141,9 +143,10 @@ function kittySurface(renderer: Renderer, rows: number, layer: string, write: Wr
             rows: surfaceRows,
             ...size,
             rgba: paint(size.width, size.height),
+            replaces: showing,
           }),
         )
-        placed = true
+        showing = id
       } catch (error) {
         failed = true
         remove()
