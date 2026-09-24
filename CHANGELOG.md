@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/malhashemi/opencode-gpt-live/compare/v0.1.1...v0.1.2) (2026-09-24)
+
+
+### Bug fixes
+
+* **tui:** keep the voice UI drawing when the theme lacks some hues ([#18](https://github.com/malhashemi/opencode-gpt-live/issues/18)) ([aa77cf5](https://github.com/malhashemi/opencode-gpt-live/commit/aa77cf517e37ce4eb8ab63d039de685f0c954c7e))
+
 ## [0.1.1](https://github.com/malhashemi/opencode-gpt-live/compare/v0.1.0...v0.1.1) (2026-09-24)
 
 
