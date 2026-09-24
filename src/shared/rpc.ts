@@ -75,6 +75,20 @@ export const GptLive = define({
       input: z.object({ callID: z.string(), text: z.string() }),
       output: z.object({ sent: z.boolean() }),
     },
+    /** Same-project sessions the terminal can see. This does not change the selected target. */
+    catalog: {
+      input: z.object({
+        callID: z.string(),
+        targets: z.array(
+          z.object({
+            sessionID: z.string(),
+            title: z.string(),
+            directory: z.string(),
+          }),
+        ),
+      }),
+      output: z.object({ accepted: z.number() }),
+    },
   },
   events: {
     state: {
@@ -107,6 +121,14 @@ export const GptLive = define({
         scope: z.enum(["voice", "main"]),
         busy: z.boolean(),
         label: z.string().optional(),
+      }),
+    },
+    target: {
+      schema: z.object({
+        callID: z.string(),
+        sessionID: z.string(),
+        title: z.string(),
+        directory: z.string(),
       }),
     },
   },

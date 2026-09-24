@@ -8,6 +8,7 @@ import { background, historyFrom, type HistoryEntry } from "./context"
 import { LiveError, MODEL, Sideband, createCall, requestIDs } from "./live"
 import { CallLog } from "./log"
 import { loadPrompt } from "./prompt"
+import type { CodingTarget } from "./routing"
 
 interface Options {
   voice?: string
@@ -32,6 +33,8 @@ interface Call {
   prompt: string
   bridge?: Bridge
   sideband?: Sideband
+  /** Catalog published before the bridge finished connecting. */
+  pendingCatalog?: CodingTarget[]
   /** Last heartbeat from the window that owns the call. */
   seenAt: number
   end(reason?: string): void
@@ -153,10 +156,35 @@ export default Plugin.define({
         run: (bridge, input) => bridge.read(typeof input.turns === "number" ? input.turns : 8),
       })
       tool({
-        name: "main_stop",
-        description: "Stop the main session's current work.",
+        name: "targets",
+        description: "List coding sessions in this project and show which one receives the next task.",
         input: { type: "object", properties: {}, additionalProperties: false },
-        run: (bridge) => bridge.cancel(),
+        run: (bridge) => bridge.listTargets(),
+      })
+      tool({
+        name: "select_target",
+        description:
+          "Switch the coding session that receives the next task. Requires confirmed=true after the user agrees. Does not move work already running.",
+        input: {
+          type: "object",
+          properties: {
+            sessionID: { type: "string" },
+            confirmed: { type: "boolean", description: "True only after the user confirms the named session." },
+          },
+          required: ["sessionID"],
+          additionalProperties: false,
+        },
+        run: (bridge, input) => bridge.selectTarget(String(input.sessionID), input.confirmed === true),
+      })
+      tool({
+        name: "main_stop",
+        description: "Stop work in the unambiguous active coding session, or in sessionID when more than one is busy.",
+        input: {
+          type: "object",
+          properties: { sessionID: { type: "string", description: "Required when more than one session is working." } },
+          additionalProperties: false,
+        },
+        run: (bridge, input) => bridge.cancel(typeof input.sessionID === "string" ? input.sessionID : undefined),
       })
       tool({
         name: "main_permissions",
@@ -380,6 +408,7 @@ export default Plugin.define({
                 void registration.events.emit("task", defined({ callID: entry.callID, taskID, text, status, detail })),
               activity: (scope, busy, label) =>
                 void registration.events.emit("activity", defined({ callID: entry.callID, scope, busy, label })),
+              target: (target) => void registration.events.emit("target", { callID: entry.callID, ...target }),
               closed: (reason) => finish("closed", reason),
               error: (message) => {
                 log?.write({ type: "error", message })
@@ -392,7 +421,13 @@ export default Plugin.define({
             },
             log,
             link.calls,
+            {
+              sessionID: entry.sessionID,
+              title: mainTitle ?? "this session",
+              directory: ctx.location.directory,
+            },
           )
+          if (entry.pendingCatalog) entry.bridge.replaceCatalog(entry.pendingCatalog)
           emitState("live")
         }
         void joinControlChannel().catch((cause) =>
@@ -428,6 +463,15 @@ export default Plugin.define({
         if (!active?.bridge || active.callID !== input.callID) return { sent: false }
         active.bridge.say(input.text)
         return { sent: true }
+      },
+
+      catalog: async (input) => {
+        if (!active || active.callID !== input.callID) return { accepted: 0 }
+        if (!active.bridge) {
+          active.pendingCatalog = input.targets
+          return { accepted: input.targets.length }
+        }
+        return { accepted: active.bridge.replaceCatalog(input.targets) }
       },
     })
 
