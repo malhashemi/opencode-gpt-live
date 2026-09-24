@@ -57,18 +57,35 @@ export function mix(a: RGBA, b: RGBA, t: number) {
   )
 }
 
+type HueName = keyof Theme["hue"]
+type HueStep = keyof Theme["hue"][HueName]
+
 function palette(theme: Theme) {
   const bg = theme.background.base
+  // Some themes define only part of the hue set (OpenCode 2.0.16's "system" theme has no
+  // cyan, blue, purple, green or yellow), so each color falls back to the nearest one present.
+  const hues = theme.hue as Partial<Theme["hue"]>
+  const pick = (step: HueStep, ...names: HueName[]) => {
+    for (const name of names) {
+      const color = hues[name]?.[step]
+      if (color) return color
+    }
+    return theme.text.base
+  }
   return {
     bg,
     text: theme.text.base,
     muted: theme.text.muted,
-    mic: [theme.hue.cyan[300], theme.hue.cyan[500], theme.hue.blue[400]] as const,
-    speaker: [theme.hue.purple[300], theme.hue.purple[500], theme.hue.accent[500]] as const,
-    live: theme.hue.green[500],
-    warn: theme.hue.yellow[500],
-    error: theme.hue.red[500],
-    accent: theme.hue.accent[500],
+    mic: [
+      pick(300, "cyan", "interactive", "accent"),
+      pick(500, "cyan", "interactive", "accent"),
+      pick(400, "blue", "interactive", "accent"),
+    ] as const,
+    speaker: [pick(300, "purple", "accent"), pick(500, "purple", "accent"), pick(500, "accent")] as const,
+    live: pick(500, "green", "interactive", "accent"),
+    warn: pick(500, "yellow", "orange", "accent"),
+    error: pick(500, "red", "orange", "accent"),
+    accent: pick(500, "accent"),
     dim: mix(theme.text.muted, bg, 0.45),
   }
 }
@@ -546,8 +563,9 @@ export class Frames {
           animating = true
           period = Math.min(period, view.interval?.() ?? 33)
         }
-      } catch {
+      } catch (error) {
         // Keep other views and the call alive if one view fails to draw.
+        debug({ event: "view-error", error: String(error) })
       }
     }
     if (this.timer && (!animating || period !== this.period)) {
