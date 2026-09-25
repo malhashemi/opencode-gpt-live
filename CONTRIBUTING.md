@@ -37,6 +37,10 @@ bun run check          # formatting, lint, types, tests
    which platform.
 5. Open the pull request with a [Conventional Commit](https://www.conventionalcommits.org/) title.
 
+`main` only changes through pull requests, and CI must pass before anything merges. CI on a pull request from someone
+who has not had a contribution merged yet starts once a maintainer approves the run. A maintainer reviews and merges
+outside contributions; maintainers merge their own pull requests once CI passes.
+
 ### Commit and pull request titles
 
 Titles drive the changelog and version numbers, so they follow Conventional Commits:

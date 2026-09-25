@@ -114,7 +114,8 @@ Releases are automated with [release-please](https://github.com/googleapis/relea
 1. Merge pull requests with [Conventional Commit](https://www.conventionalcommits.org/) titles (`feat:`, `fix:`,
    `docs:` and so on). `feat` bumps the minor version, `fix` the patch version.
 2. release-please keeps a release pull request open with the next version and the changelog entry. Edit its
-   `CHANGELOG.md` if the wording needs polish.
+   `CHANGELOG.md` if the wording needs polish. GitHub does not run CI for pull requests opened by GitHub Actions, so
+   the release workflow starts CI on that branch itself; its checks appear on the release pull request like any other.
 3. Merging the release pull request tags the release. The release workflow then builds the helper for every platform,
    attaches the binaries and `SHA256SUMS` to the GitHub release, and publishes to npm:
    - `opencode-gpt-live-<platform>-<arch>`: one package per platform, carrying the helper.
