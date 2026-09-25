@@ -25,6 +25,7 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
       pull-requests: write
     outputs:
@@ -37,6 +38,21 @@ jobs:
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # Pull requests opened with the workflow token do not trigger CI, but main requires its
+      # checks. Start CI on the release branch so the release pull request can merge normally.
+      - name: Run CI on the release pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --label "autorelease: pending" \
+            --json headRefName -q '.[0].headRefName')
+          if [ -n "$branch" ]; then
+            gh workflow run ci.yml -R "$GITHUB_REPOSITORY" --ref "$branch"
+            echo "Started CI on $branch"
+          else
+            echo "No open release pull request"
+          fi
 
   # Decides what to publish: the release release-please just created, or the tag given to a
   # manual run.
