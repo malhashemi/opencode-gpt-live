@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/malhashemi/opencode-gpt-live/compare/v0.1.2...v0.1.3) (2026-09-26)
+
+
+### Bug fixes
+
+* report failed voice handoffs and clarify access ([#16](https://github.com/malhashemi/opencode-gpt-live/issues/16)) ([8b94eb4](https://github.com/malhashemi/opencode-gpt-live/commit/8b94eb4eb0a478a0d2563eba37b9f281523f6a7f))
+
 ## [0.1.2](https://github.com/malhashemi/opencode-gpt-live/compare/v0.1.1...v0.1.2) (2026-09-24)
 
 
