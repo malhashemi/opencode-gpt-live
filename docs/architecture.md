@@ -83,6 +83,8 @@ flowchart LR
   server ends any call whose window has been quiet for 20 seconds, so a crashed or killed window never leaves a call
   running.
 - **Takeover.** Starting a call while another is active ends the old one instead of refusing.
+- **Lost event stream.** Task outcomes arrive on OpenCode's event stream. If it ends or fails, open tasks are reported
+  once as lost, new tasks are refused, and the call hangs up a few seconds later, once GPT-Live has said so.
 - **Continuity.** Plugin storage keeps `link/<mainSessionID>` (the voice session and call count) and
   `turns/<voiceSessionID>` (the last turns, replayed as background at the next call). `/voice-new` starts a fresh
   voice session.
