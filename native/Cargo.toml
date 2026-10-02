@@ -31,7 +31,7 @@ webrtc = "=0.20.3"
 
 # Lowering other apps' audio during calls (see src/duck.rs).
 [target.'cfg(target_os = "windows")'.dependencies]
-windows = { version = "0.61", features = [
+windows = { version = "0.62", features = [
   "Win32_Media_Audio",
   "Win32_System_Com",
   "Win32_System_Com_StructuredStorage",
