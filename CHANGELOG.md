@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/malhashemi/opencode-gpt-live/compare/v0.1.3...v0.2.0) (2026-10-02)
+
+
+### Features
+
+* default the voice agent to GPT-6.1 Sol ([#26](https://github.com/malhashemi/opencode-gpt-live/issues/26)) ([3cb280b](https://github.com/malhashemi/opencode-gpt-live/commit/3cb280b904e80950244bfb8dd63aa67fea5d2975))
+
 ## [0.1.3](https://github.com/malhashemi/opencode-gpt-live/compare/v0.1.2...v0.1.3) (2026-09-26)
 
 
