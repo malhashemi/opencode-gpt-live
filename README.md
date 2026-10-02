@@ -144,7 +144,7 @@ Pass options with the object form of the plugin entry. Every option is optional.
 | `instructions`           |                                                            | Extra instructions appended to GPT-Live's prompt, such as a preferred language or tone.                              |
 | `voiceAgentInstructions` |                                                            | Extra instructions appended to the voice agent's prompt.                                                             |
 | `prompts`                |                                                            | Replace a built-in prompt: `{ "gptLive": "<path>", "voiceAgent": "<path>" }`. See [Custom prompts](#custom-prompts). |
-| `voiceModel`             | `"openai/gpt-6-sol"`                                       | Model for the background agent that thinks for GPT-Live, as `provider/model`.                                        |
+| `voiceModel`             | `"openai/gpt-6.1-sol"`                                     | Model for the background agent that thinks for GPT-Live, as `provider/model`.                                        |
 | `voiceVariant`           | `"medium"`                                                 | Thinking level for that model.                                                                                       |
 | `log`                    | `true`                                                     | Keep a local log of each call (see [Privacy](#privacy)).                                                             |
 | `visual`                 | automatic                                                  | Force the aura's drawing method: `kitty`, `herdr` or `blocks`.                                                       |

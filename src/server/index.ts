@@ -73,7 +73,7 @@ export default Plugin.define({
   async setup(ctx) {
     const options = ctx.options as Options
     const defaultVoice: Voice = VOICES.includes(options.voice as Voice) ? (options.voice as Voice) : "cove"
-    const voiceModel = parseModel(options.voiceModel ?? "openai/gpt-6-sol", options.voiceVariant ?? "medium")
+    const voiceModel = parseModel(options.voiceModel ?? "openai/gpt-6.1-sol", options.voiceVariant ?? "medium")
     let active: Call | undefined
     // Calls outlive a window that crashes or is killed (the server is shared), so the
     // window sends heartbeats and abandoned calls are ended rather than left running.
