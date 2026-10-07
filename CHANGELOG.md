@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/malhashemi/opencode-gpt-live/compare/v0.2.0...v0.3.0) (2026-10-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* preserve voice model selection and prevent PipeWire self-ducking ([#25](https://github.com/malhashemi/opencode-gpt-live/issues/25))
+
+### Bug fixes
+
+* **audio:** bound playback backlog and clear acknowledgement ([#29](https://github.com/malhashemi/opencode-gpt-live/issues/29)) ([1a359f8](https://github.com/malhashemi/opencode-gpt-live/commit/1a359f88c9a4e2a878b7e32c806f98cfb114a813))
+* preserve voice model selection and prevent PipeWire self-ducking ([#25](https://github.com/malhashemi/opencode-gpt-live/issues/25)) ([c3e44de](https://github.com/malhashemi/opencode-gpt-live/commit/c3e44de45bc8a3f36f7f1eec8c6f63a8464e0ec2))
+
 ## [0.2.0](https://github.com/malhashemi/opencode-gpt-live/compare/v0.1.3...v0.2.0) (2026-10-02)
 
 
